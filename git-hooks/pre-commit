@@ -1,0 +1,108 @@
+#!/bin/sh
+#
+# An example hook script to verify what is about to be committed.
+# Called by "git commit" with no arguments.  The hook should
+# exit with non-zero status after issuing an appropriate message if
+# it wants to stop the commit.
+#
+# To enable this hook, rename this file to "pre-commit".
+
+#!/bin/sh
+
+
+
+
+
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [[ "$STAGED_FILES" = "" ]]; then
+  echo "---"
+  echo "There is no staged file"
+  echo "---" 
+
+  # exit 0
+fi
+
+
+
+PASS=true
+ERR1=""
+ERR2=""
+PASSESLINT=true
+PASSTSC=true
+
+
+npx yarn lint
+
+if [[ "$?" == 0 ]]; then
+    echo "No Problem in files"
+else
+    echo "\t\033[41mESLint Failed"
+    ERR1="\nEslint Failed"
+    PASS=false
+    PASSESLINT=false
+fi
+
+npx tsc
+
+if [[ "$?" == 0 ]]; then
+    echo "No Typescript Problems in files"
+else
+    echo "TSC Failed"
+    ERR2="\nTSC Failed"
+    PASS=false
+    PASSTSC=false
+fi
+
+echo "$ERR1$ERR2"
+
+
+echo "\nJavascript validation completed!\n"
+
+exec < /dev/tty
+
+if ! $PASSESLINT; then
+    read -p "Do you wish to bypass eslint errors (y/N) - not recommeneded:  " answer
+    case ${answer:0:1} in
+        y|Y )
+            echo Yes
+        ;;
+        * )
+            echo No
+        ;;
+    esac
+fi
+
+if [[ "$answer" == "y" ]]; then
+  PASSESLINT=true
+fi
+
+
+
+if ! $PASSTSC; then
+    read -p "Do you wish to bypass  tsc errors (y/N):  " answer
+    case ${answer:0:1} in
+        y|Y )
+            echo Yes
+        ;;
+        * )
+            echo No
+        ;;
+    esac
+fi
+
+if [[ "$answer" == "y" ]]; then
+  PASSTSC=true
+fi
+
+
+
+if ! $PASSTSC || ! $PASSESLINT; then
+  echo "\033[41mCOMMIT FAILED:\033[0m Your commit contains files that should pass npx yarn lint and tsc lint"
+  exit 1
+else
+  echo "\033[42mCOMMIT SUCCEEDED\033[0m\n"
+fi
+
+exit $?
